@@ -1,0 +1,13 @@
+BÀI 1: PHÂN TÍCH VÀ LỰA CHỌN
+CẤU HÌNH ĐA MÔI TRƯỜNG (SPRING PROFILES)
+1. Đáp án tối ưu nhất và lý do lựa chọn
+Phương án B là phương án tối ưu nhất vì sử dụng đúng cơ chế Spring Profiles và tách cấu hình của từng môi trường thành các file riêng. application-local.properties chứa cấu hình Ollama và Qwen cho Development/Testing; application-cloud.properties chứa cấu hình OpenRouter và Gemini cho Staging/Production; application.properties dùng để khai báo profile mặc định hoặc chứa cấu hình chung.
+Khi spring.profiles.active=local, Spring Boot nạp application.properties và application-local.properties, vì vậy ứng dụng sử dụng Qwen thông qua Ollama. Khi đổi thành spring.profiles.active=cloud, Spring Boot nạp application.properties và application-cloud.properties, từ đó ứng dụng sử dụng Gemini thông qua OpenRouter. Việc chuyển đổi chỉ cần thay đổi properties hoặc biến môi trường SPRING_PROFILES_ACTIVE, không phải sửa mã Java.
+Phương án B có tính đóng gói và dễ bảo trì vì cấu hình local không bị trộn với cấu hình cloud. Khi cần đổi model hoặc endpoint, lập trình viên chỉ sửa file của môi trường tương ứng. API key được lấy từ biến môi trường ${OPENROUTER_API_KEY}, tránh ghi bí mật trực tiếp trong mã nguồn và phù hợp với quy trình triển khai CI/CD.
+2. Hạn chế và lỗi kỹ thuật của các phương án còn lại
+2.1. Phương án A
+Phương án A đặt cấu hình Ollama và OpenRouter chung trong application.properties. File này luôn được nạp dù profile nào đang hoạt động, nên spring.profiles.active=local không thực sự cô lập cấu hình cloud. Vì vậy, cấu hình giữa Development và Production bị trộn lẫn, khó bảo trì và dễ gọi nhầm dịch vụ cloud.
+Nếu dự án có cả starter Ollama và OpenAI, Spring AI có thể khởi tạo đồng thời OllamaChatModel và OpenAiChatModel. Khi mã Java inject interface ChatModel mà không chỉ rõ bean, Spring có nguy cơ báo lỗi NoUniqueBeanDefinitionException vì tìm thấy nhiều bean cùng kiểu. Ngoài ra, ứng dụng local còn có thể phụ thuộc vào biến OPENROUTER_API_KEY dù không sử dụng OpenRouter.
+2.2. Phương án C
+spring.ai.active-model-type=ollama là key tự đặt, không phải thuộc tính chuẩn của Spring Profiles. Spring Boot không tự dùng key này để lựa chọn Ollama. Muốn nó có tác dụng phải viết thêm mã Java, chẳng hạn sử dụng @ConditionalOnProperty, trái với yêu cầu của đề bài.
+Hai key spring.ai.ollama.url và spring.ai.openai.url cũng không đúng key kết nối chuẩn của Spring AI. Key đúng phải là spring.ai.ollama.base-url và spring.ai.openai.base-url. Vì dùng sai key, Spring AI có thể bỏ qua giá trị cấu hình. Phương án C còn thiếu tên model Qwen, tên model Gemini và API key OpenRouter nên chưa thể đáp ứng đầy đủ yêu cầu hệ thống.
